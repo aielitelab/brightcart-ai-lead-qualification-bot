@@ -1,0 +1,91 @@
+{
+  "name": "BrightCart — AI Lead Qualification Bot",
+  "description": "Webhook-triggered lead qualification pipeline. Scores inbound leads with OpenAI, logs every lead to Airtable, and alerts the team in Slack only when a lead qualifies as hot.",
+  "flow": [
+    {
+      "id": 1,
+      "module": "webhook",
+      "app": "Webhooks",
+      "action": "Custom webhook",
+      "notes": "Entry point. Receives lead form submissions (name, email, company, message/inquiry) as JSON payload.",
+      "sample_input": {
+        "name": "Jordan Ellis",
+        "email": "jordan@examplecart.com",
+        "company": "Example Cart Co.",
+        "message": "We're doing about 400 orders/month and our current support setup can't keep up. Looking for something that scales with us in the next 30 days."
+      }
+    },
+    {
+      "id": 2,
+      "module": "openai-gpt-completion",
+      "app": "OpenAI (ChatGPT, Sora, Whisper)",
+      "action": "Generate a Completion",
+      "notes": "Sends the lead's message plus context fields to GPT with a structured prompt. The model returns a qualification score, category, and a suggested next action as its completion text.",
+      "prompt_template": "You are a lead qualification assistant for an e-commerce automation agency. Given the following inbound lead message, respond ONLY in this exact format:\nScore: <0-100>\nCategory: <Hot|Warm|Cold>\nNext Action: <one short sentence>\n\nLead message: {{1.message}}\nCompany: {{1.company}}",
+      "sample_output": "Score: 87\nCategory: Hot\nNext Action: Reach out within the hour, this lead has clear volume and urgency signals."
+    },
+    {
+      "id": 3,
+      "module": "json-parse",
+      "app": "JSON",
+      "action": "Parse JSON",
+      "notes": "Converts OpenAI's structured text completion into usable fields (score, category, next_action) for the downstream Airtable and Router modules. This step is what makes the AI's free-text output machine-readable for the rest of the scenario.",
+      "sample_output": {
+        "score": 87,
+        "category": "Hot",
+        "next_action": "Reach out within the hour, this lead has clear volume and urgency signals."
+      }
+    },
+    {
+      "id": 4,
+      "module": "airtable-create-record",
+      "app": "Airtable",
+      "action": "Create a Record",
+      "notes": "Logs every lead that comes through the webhook, regardless of score. Airtable is the system of record here, nothing gets lost even if it doesn't qualify as hot.",
+      "fields_written": [
+        "Name",
+        "Email",
+        "Company",
+        "Message",
+        "Score",
+        "Category",
+        "Next Action",
+        "Date Received"
+      ]
+    },
+    {
+      "id": 5,
+      "module": "router",
+      "app": "Router",
+      "notes": "Splits the flow based on lead category. Only 'Hot' leads continue to the Slack alert path, this keeps the team's Slack channel from getting noisy on every form submission.",
+      "routes": [
+        {
+          "order": "1st",
+          "label": "Only Hot Leads",
+          "filter": "{{3.category}} = Hot",
+          "continues_to": "Slack — Send a Message"
+        },
+        {
+          "order": "2nd",
+          "label": "(unbuilt — extension point)",
+          "filter": "none configured",
+          "continues_to": null,
+          "notes": "Intentionally left open in this demo. In a production build, this path would typically route Warm/Cold leads into a nurture sequence (e.g., an automated follow-up email or a CRM tag for later outreach) rather than dropping them after the Airtable log."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "module": "slack-send-message",
+      "app": "Slack",
+      "action": "Send a Message",
+      "notes": "Fires only for leads the Router classified as Hot. Keeps the sales team's attention on leads worth an immediate response instead of every inbound form submission.",
+      "sample_message": ":fire: Hot lead: Jordan Ellis (Example Cart Co.)\nScore: 87/100\nNext action: Reach out within the hour, this lead has clear volume and urgency signals.\nEmail: jordan@examplecart.com"
+    }
+  ],
+  "extension_points": [
+    "Second Router path: route Warm/Cold leads into a nurture sequence instead of ending at the Airtable log.",
+    "Add a CRM module (e.g., HubSpot, GHL) alongside Airtable so the lead also lands directly in the sales pipeline.",
+    "Add a confidence/reasoning field to the OpenAI prompt so low-confidence scores can be flagged for manual review."
+  ]
+}
