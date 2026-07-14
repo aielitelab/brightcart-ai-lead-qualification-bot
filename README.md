@@ -12,6 +12,26 @@ Built as a demo project using a fictional e-commerce brand ("BrightCart") to sho
 4. A Router splits the flow: only **Hot** leads trigger an immediate Slack alert to the team
 
 This means the sales team's Slack channel only pings for leads actually worth dropping what they're doing for, while every single lead still has a permanent record.
+![Make.com scenario overview](./docs/screenshots/AI%20lead%20qualitifaction%20bot.jpg)
+
+*The full scenario: Webhook → OpenAI → JSON Parse → Airtable → Router → Slack*
+## How it looks in practice
+
+**A lead comes in through the form:**
+
+![Contact form submission](./docs/screenshots/contact%20form.jpg)
+
+**OpenAI scores it and drafts a next action:**
+
+![AI qualification response](./docs/screenshots/response%20ai.jpg)
+
+**The response gets parsed into structured fields:**
+
+![Parsed JSON output](./docs/screenshots/json%20output.jpg)
+
+**Every lead lands in Airtable, hot or not:**
+
+![Airtable log](./docs/screenshots/airtable1.jpg)
 
 ## Why this pattern
 
